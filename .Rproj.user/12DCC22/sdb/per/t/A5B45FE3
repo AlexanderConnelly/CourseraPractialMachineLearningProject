@@ -1,0 +1,18 @@
+{
+    "contents" : "\nrequire(caret)\nrequire(kernlab)\n\n#Spam Examples:\n\ndata(spam)\n\n## Example: Data Splitting\n\ninTrain <- createDataPartition(y=spam$type, p = 0.75, list = FALSE)\n## 75 % in training, 25% in test\n\ntraining <- spam[inTrain,]\ntesting <- spam[-inTrain,]\n\ndim(training)\n\n\n## Data splitting k-fold splitting\n\nfolds <- createFolds(y = spam$type, k = 10, list = TRUE, returnTrain = TRUE)\n\nsapply(folds,length)\n\n## Data Splitting: Resampling # resampling with replacement of the values\n\nfolds <- createResample(y = spam$type, k = 10, list = TRUE)\n\nsapply(folds,length)\n\n## Data Splitting: Time Slices\n\ntme <- 1:1000\n\nfolds <- createTimeSlices(y=tme,initialWindow = 20, horizon = 10)\n\n## Fit a Model\n\nset.seed(32343)\nmodelFit<- train(type ~., data = training, method = \"glm\")\n\nmodelFit\n\n## Final Model\n\nmodelFit$finalModel\n\n## Prediction\n\npredictions <- predict(modelFit, newdata = testing)\n\n# Confusion Matrix\n\nconfusionMatrix(predictions, testing$type)\n\n## Plotting Predictors:\n##########################################################################\n## Wage Data Example For Plotting Predictors\n\nrequire(ISLR)\nrequire(ggplot2)\nrequire(caret)\n\ndata(Wage)\nsummary(Wage)\n\n\ninTrain <- createDataPartition(y=Wage$wage, p = 0.75, list = FALSE)\n## 75 % in training, 25% in test\n\ntraining <- Wage[inTrain,]\ntesting <- Wage[-inTrain,]\n\ndim(training)\n\n\nfeaturePlot(x = training[,c(\"age\",\"education\", \"jobclass\",\"race\",\"maritl\" )], y = training$wage, plot = \"pairs\")\n\n",
+    "created" : 1450290105347.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3583093581",
+    "id" : "A5B45FE3",
+    "lastKnownWriteTime" : 1450293353,
+    "path" : "C:/Users/a.connelly.SIGMACUBED/Google Drive/Coursera/Data Science/Practical Machine Learning/Project/Practical Machine Learning/Intro Functions Week 2.R",
+    "project_path" : "Intro Functions Week 2.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "type" : "r_source"
+}

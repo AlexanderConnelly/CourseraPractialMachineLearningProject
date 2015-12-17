@@ -1,0 +1,25 @@
+{
+    "contents" : "",
+    "created" : 1450292387581.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "2012B80C",
+    "lastKnownWriteTime" : 7011605692497750387,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "rc7mtkgab4",
+        "caption" : "Wage",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=Wage&cache_key=rc7mtkgab4",
+        "displayedObservations" : 3000,
+        "environment" : "",
+        "object" : "Wage",
+        "totalObservations" : 3000,
+        "variables" : 12
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "type" : "r_dataframe"
+}
