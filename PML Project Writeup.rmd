@@ -1,0 +1,180 @@
+---
+title: "MachineLearningProject"
+author: "Alexander Connelly"
+date: "December 17, 2015"
+output: html_document
+---
+
+#Using Machine Learning To Predict Excercise Correctivness
+
+This report will summarise and and preform a breif machine learning excercise where we can predict the correctness of a mode of exersise a person was preforming while wearing an activity measuring device. In this experiment, 6 subjects exersised as propperly as they could preforming a few exercize motions correctly and incorrectly while wearing and collecting data from accelerometers on the belt, forearm, arm, and dumbell. Using that data, and the machine learning concepts we learned in the Practical Machine learning course thru Johns Hopkins, we can evaluate how well various machine learning algorithm works against this dataset and predict the activity being preformed in the test set.
+
+##Loading and Paritioning The Dataset:
+
+For this project we were given a training/ testing set and a testing/ submission set which will be submitted for credit based on the accuracy of the prediction. Using the Caret Package in R, and training our Machine Learning Algorithm using the training/ testing set, we will create the best model that can more effectivly predict the exercise that was being preformed on the test set.  
+
+First, will start by loading the data into R.  
+
+```{r ImportData}
+require(rattle)
+require(caret)
+require(ggplot2)
+require(randomForest)
+
+training_initial <- read.csv("pml-training.csv")
+submission_testset <- read.csv("pml-testing.csv")
+
+```
+
+We will now partition the training_initial set into a training set and a testing set so we can evaluate the effectiveness of the algorithm on the data itself.
+
+```{r Partition Data}
+# partition data into seperate data points
+inTrain <- createDataPartition(y=training_initial$classe, p = 0.75, list = FALSE)
+## 75 % in training, 25% in test
+
+training <- training_initial[inTrain,]
+testing <- training_initial[-inTrain,]
+
+dim(training)
+dim(testing)
+```
+
+We can now see the dimensions of the training set, which is 75% of the initial training set. The testing set is the remaining 25% of the points, which will NOT be included in building the model. This way, we can evaluate the model on the testing data set for its effectiveness.
+
+##Cleaning the dataset:
+
+Now we have to clean this data for columns that add little to no values or variance. We can find near zero variance variables using a function in the caret package called nearZeroVar, find the column names that are near zero variance, and then remove them from our data set as they add unnecessary noise to the predictions.
+
+```{r, removeNZV}
+
+nearZeroVariables <- nearZeroVar(training_initial, saveMetrics = TRUE)
+nearZeroVariables <- as.list(row.names(subset(nearZeroVariables, nzv == TRUE)))
+nearZeroVariables <- paste(nearZeroVariables, collapse = ",")
+# Also removing X variable from original data so it doesnt train on that
+nearZeroVariables <- names(training) %in% c("X","new_window","kurtosis_roll_belt","kurtosis_picth_belt","kurtosis_yaw_belt","skewness_roll_belt","skewness_roll_belt.1","skewness_yaw_belt","max_yaw_belt","min_yaw_belt","amplitude_yaw_belt","kurtosis_roll_arm","kurtosis_picth_arm","kurtosis_yaw_arm","skewness_roll_arm","skewness_pitch_arm","skewness_yaw_arm","kurtosis_roll_dumbbell","kurtosis_picth_dumbbell","kurtosis_yaw_dumbbell","skewness_roll_dumbbell","skewness_pitch_dumbbell","skewness_yaw_dumbbell","max_yaw_dumbbell","min_yaw_dumbbell","amplitude_yaw_dumbbell","kurtosis_roll_forearm","kurtosis_picth_forearm","kurtosis_yaw_forearm","skewness_roll_forearm","skewness_pitch_forearm","skewness_yaw_forearm","max_yaw_forearm","min_yaw_forearm","amplitude_yaw_forearm")
+
+# Remove from training, testing, and submission_testset data sets:
+training <- training[!nearZeroVariables]
+testing <- testing[!nearZeroVariables]
+submission_testset <- submission_testset[!nearZeroVariables]
+```
+
+Note we also removed the X variable which is the numbered rows variable. This can get placed into the mix and cause over-fitting on our model, so we took that variable out.
+
+Next, column with little to add to the model building would include those that have too many NA values. Most models, especially tree fitting models, will throw errors, warnings, or get hung up on too many Na's. So we will now test for and remove them.
+
+```{r NAColumns}
+# Find column names with NA's greater than 70%
+NA_Col_Names <- list()
+for (i in 1:ncol(training_initial)){
+        if( sum( is.na(training_initial[, i] ) ) /nrow(training_initial) >= .7) {
+                NA_Col_Names <- c(NA_Col_Names, names(training_initial[i]))
+        }
+}
+NA_Col_Names <- paste(NA_Col_Names, collapse= ',')
+NA_Col_Names <- names(training) %in% c("max_roll_belt","max_picth_belt","min_roll_belt","min_pitch_belt","amplitude_roll_belt","amplitude_pitch_belt","var_total_accel_belt","avg_roll_belt","stddev_roll_belt","var_roll_belt","avg_pitch_belt","stddev_pitch_belt","var_pitch_belt","avg_yaw_belt","stddev_yaw_belt","var_yaw_belt","var_accel_arm","avg_roll_arm","stddev_roll_arm","var_roll_arm","avg_pitch_arm","stddev_pitch_arm","var_pitch_arm","avg_yaw_arm","stddev_yaw_arm","var_yaw_arm","max_roll_arm","max_picth_arm","max_yaw_arm","min_roll_arm","min_pitch_arm","min_yaw_arm","amplitude_roll_arm","amplitude_pitch_arm","amplitude_yaw_arm","max_roll_dumbbell","max_picth_dumbbell","min_roll_dumbbell","min_pitch_dumbbell","amplitude_roll_dumbbell","amplitude_pitch_dumbbell","var_accel_dumbbell","avg_roll_dumbbell","stddev_roll_dumbbell","var_roll_dumbbell","avg_pitch_dumbbell","stddev_pitch_dumbbell","var_pitch_dumbbell","avg_yaw_dumbbell","stddev_yaw_dumbbell","var_yaw_dumbbell","max_roll_forearm","max_picth_forearm","min_roll_forearm","min_pitch_forearm","amplitude_roll_forearm","amplitude_pitch_forearm","var_accel_forearm","avg_roll_forearm","stddev_roll_forearm","var_roll_forearm","avg_pitch_forearm","stddev_pitch_forearm","var_pitch_forearm","avg_yaw_forearm","stddev_yaw_forearm","var_yaw_forearm")
+
+training <- training[!NA_Col_Names]
+testing <- testing[!NA_Col_Names]
+submission_testset <- submission_testset[!NA_Col_Names]
+
+## remove numbered question column in submission test set:
+
+submission_testset <- submission_testset[,-58]
+```
+
+Note above we also removed the columns from the testing set and the submission test set as to not confuse the model when we get to the prediction step.
+
+Finally, remove the useless column in the submission_test set that is only for the submission part of this project.
+
+## Preprocessing(optional):
+
+I decided to include the preprocessing step in my analysis, although for this data it didn't change the effectiveness of our algorithm. Just so its known how this is done:
+
+```{r preProcess}
+preObj<- preProcess(training, method = c("center","scale"))
+
+training_pre <- predict(preObj, training)
+
+testing_pre <- predict(preObj, testing)
+```
+
+## Building Models
+
+We will evaluate the effectiveness of 3 popular tree based machine learning models, and then choose the one with the best results in predicting against the test set. To do this we will apply each algorithm using the **Caret Package** to run a base mode model given the cleaned and prepped data. 
+
+Caret will apply **cross validation** here by bootstrapping the models 25 times, thus, taking the average of 25 models of the data, and thus, will help derive a more accurate overall model:
+
+```{r buildModels}
+# Tree Models:
+require(caret)
+require(ggplot2)
+require(randomForest)
+# Random Forest
+modFit_rf <- train(classe ~. ,data = training, method = "rf", prox = TRUE)
+
+
+
+# Boosting with Trees
+#modFit_gbm <- train(classe~., data = training, method = "gbm",verbose = FALSE)
+
+
+# CART (Classification and Regression Trees)
+#modFit_rpart <- train(classe~., data = training, method = "rpart",verbose = FALSE)
+
+
+```
+
+We used three different tree models including Random Forest, Boosting with Trees, and a CART which is a classification and regression tree model. The results of the RCART Model can be seen in a classification tree:
+
+```{r classificationTree}
+#fancyRpartPlot(modFit_rpart_pre$finalModel)
+```
+
+We can now see the importance of certain variables based on the different models used for Random Forest. This is the output for which variables have the most impact on the model for classification:
+
+```{r varImp}
+varImp(modFit_rf)
+```
+
+##Model Validation:
+
+Now we will predict on the testing data set using each model, then test for accuracy of each model. By applying the model to the test set, we see a semi blind result of the effectiveness of the model. This is called **conventional validation**, and with the results of this we will have an idea of how well the models we build will be able to predict.
+
+```{r PredictConfuse}
+## Prediction
+
+predict_rf <- predict(modFit_rf, newdata = testing)
+#predict_gbm <- predict(modFit_gbm, newdata  = testing)
+#predict_rpart <- predict(modFit_rpart, testing)
+#predict_glm <- predict(modFit_glm, newdata  = testing)
+
+# Confusion Matrix
+## Random Forest
+confusionMatrix(predict_rf, testing$classe)$overall
+# Boosting With Trees
+#confusionMatrix(predict_gbm, testing$classe)$overall
+# R Part CART
+#confusionMatrix(predict_rpart, testing$classe)$overall
+```
+
+We can see here that both Random Forest and Boosting with Trees did the best overall accuracy, we will apply one of the higher accuracy models to predict the 20 values we need to submit for the final portion of the assignment.
+
+The out of sample error for the random forest model was .99 which indiates its maybe even the best predictor of all the models built, which had worse preforming lower out of sample error.
+
+This is a "black box" approach to the effectiveness of various 
+
+##Predicting against the submission data:
+
+```{r final predict}
+answers_rf <- predict(modFit_rf, submission_testset)
+answers_rf
+```
+
+In conclusion we were able to fit our data to a random forest Machine Learning model in order to predict the exersize being done according the imput given by wearable technology.
+
+#WORK CITED:
+
+Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6. 
+Cited by 2 (Google Scholar)
